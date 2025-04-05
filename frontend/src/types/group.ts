@@ -1,4 +1,4 @@
-import { User } from "./expense";
+import { User, Currency } from "./expense";
 
 export interface Friend extends User {
   status: "PENDING" | "ACCEPTED" | "REJECTED";
@@ -13,5 +13,5 @@ export interface Group {
   createdAt: string;
   createdBy: string; // userId
   totalBalance: number;
-  currency: string;
-} 
+  currency: Currency;
+}

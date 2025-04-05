@@ -2,15 +2,21 @@ import { create } from "zustand";
 import { Expense, User, Payment, Settlement } from "@/types/expense";
 import { db, addToSyncQueue } from "@/lib/db";
 import { calculateSettlements } from "@/lib/splitCalculator";
+import { useGroupsStore } from "./groups-store";
 
 interface ExpenseState {
   expenses: Expense[];
   currentUser: User;
   connectedUsers: User[];
   isLoading: boolean;
-  addExpense: (expense: Expense) => Promise<void>;
-  editExpense: (expenseId: string, updates: Partial<Expense>) => Promise<void>;
-  deleteExpense: (expenseId: string) => Promise<void>;
+  addExpense: (expense: Expense) => Promise<Expense>;
+  editExpense: (
+    expenseId: string,
+    updates: Partial<Expense>
+  ) => Promise<Expense>;
+  deleteExpense: (
+    expenseId: string
+  ) => Promise<{ success: boolean; deletedExpenseId: string }>;
   loadExpenses: () => Promise<void>;
   refreshExpense: (expenseId: string) => Promise<Expense | null>;
   syncPendingChanges: () => Promise<void>;
@@ -141,6 +147,58 @@ const processExpenseData = (expense: Expense): Expense => {
   return expense;
 };
 
+// Helper function to update group total balance based on expense
+const updateGroupTotalBalance = async (
+  groupId: string | undefined,
+  amount: number,
+  isAddition: boolean
+) => {
+  if (!groupId) return;
+
+  try {
+    const { groups, updateGroup } = useGroupsStore.getState();
+    const group = groups.find((g) => g.id === groupId);
+
+    if (group) {
+      const newBalance = isAddition
+        ? group.totalBalance + amount
+        : group.totalBalance - amount;
+
+      await updateGroup(groupId, { totalBalance: newBalance });
+    }
+  } catch (error) {
+    console.error("Failed to update group balance:", error);
+  }
+};
+
+// Helper function to recalculate the total balance for a group based on all its expenses
+const recalculateGroupBalance = async (groupId: string) => {
+  if (!groupId) return;
+
+  try {
+    // Dynamically import useGroupsStore to avoid circular dependencies
+    const { useGroupsStore } = await import("./groups-store");
+    const { updateGroup } = useGroupsStore.getState();
+    const { expenses } = useExpenseStore.getState();
+
+    // Filter expenses that belong to this group
+    const groupExpenses = expenses.filter((e) => e.groupId === groupId);
+
+    // Calculate the total of all expenses in the group
+    const totalAmount = groupExpenses.reduce(
+      (sum, expense) => sum + expense.amount,
+      0
+    );
+
+    console.log(`Recalculating balance for group ${groupId}: ${totalAmount}`);
+
+    // Update the group with the calculated total
+    await updateGroup(groupId, { totalBalance: totalAmount });
+  } catch (error) {
+    console.error("Failed to recalculate group balance:", error);
+  }
+};
+
 export const useExpenseStore = create<ExpenseState>((set, get) => ({
   expenses: [],
   currentUser: mockCurrentUser,
@@ -198,6 +256,22 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
       // Load expenses from IndexedDB
       const expenses = await db.expenses.toArray();
       set({ expenses, isLoading: false });
+
+      // Recalculate all group balances after expenses are loaded
+      try {
+        const { useGroupsStore } = await import("./groups-store");
+        const groupsState = useGroupsStore.getState();
+
+        // Make sure groups are loaded before recalculating
+        if (!groupsState.isLoading && groupsState.groups.length > 0) {
+          console.log("Recalculating group balances after loading expenses...");
+          await groupsState.recalculateAllGroupBalances();
+        } else {
+          console.log("Groups not yet loaded, skipping balance recalculation");
+        }
+      } catch (error) {
+        console.error("Failed to recalculate group balances:", error);
+      }
     } catch (error) {
       console.error("Failed to load expenses:", error);
       set({ isLoading: false });
@@ -260,10 +334,20 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
         expenseToAdd as unknown as Record<string, unknown>
       );
 
+      // Update group total balance if expense belongs to a group
+      if (expenseToAdd.groupId) {
+        console.log(
+          `Added expense to group ${expenseToAdd.groupId}, recalculating balance`
+        );
+        await recalculateGroupBalance(expenseToAdd.groupId);
+      }
+
       // Update state
       set((state) => ({
         expenses: [...state.expenses, expenseToAdd],
       }));
+
+      return expenseToAdd;
     } catch (error) {
       console.error("Failed to add expense:", error);
       throw error;
@@ -283,6 +367,11 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
         ...existingExpense,
         ...updates,
       };
+
+      // Track if groupId changed
+      const groupChanged = existingExpense.groupId !== updatedExpense.groupId;
+      const oldGroupId = existingExpense.groupId;
+      const newGroupId = updatedExpense.groupId;
 
       // Process the expense data (calculate settlements, etc.)
       updatedExpense = processExpenseData(updatedExpense);
@@ -306,12 +395,35 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
         syncData as unknown as Record<string, unknown>
       );
 
+      // Update group total balance if needed
+      if (groupChanged) {
+        console.log(
+          `Expense group changed: ${oldGroupId} -> ${newGroupId}, recalculating both`
+        );
+
+        // If expense moved from one group to another, update both
+        if (oldGroupId) {
+          await recalculateGroupBalance(oldGroupId);
+        }
+        if (newGroupId) {
+          await recalculateGroupBalance(newGroupId);
+        }
+      } else if (updatedExpense.groupId) {
+        // If expense stayed in the same group but amount might have changed
+        console.log(
+          `Edited expense in same group ${updatedExpense.groupId}, recalculating balance`
+        );
+        await recalculateGroupBalance(updatedExpense.groupId);
+      }
+
       // Update state
       set((state) => ({
         expenses: state.expenses.map((expense) =>
           expense.id === expenseId ? updatedExpense : expense
         ),
       }));
+
+      return updatedExpense;
     } catch (error) {
       console.error("Failed to edit expense:", error);
       throw error;
@@ -320,6 +432,10 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
 
   deleteExpense: async (expenseId: string) => {
     try {
+      // Get the expense before deleting
+      const existingExpense = await db.expenses.get(expenseId);
+      const groupId = existingExpense?.groupId;
+
       // Delete from IndexedDB
       await db.expenses.delete(expenseId);
 
@@ -328,10 +444,20 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
         id: expenseId,
       } as unknown as Record<string, unknown>);
 
+      // Update group total balance if expense belonged to a group
+      if (groupId) {
+        console.log(
+          `Deleted expense from group ${groupId}, recalculating balance`
+        );
+        await recalculateGroupBalance(groupId);
+      }
+
       // Update state
       set((state) => ({
         expenses: state.expenses.filter((expense) => expense.id !== expenseId),
       }));
+
+      return { success: true, deletedExpenseId: expenseId };
     } catch (error) {
       console.error("Failed to delete expense:", error);
       throw error;

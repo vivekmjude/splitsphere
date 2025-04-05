@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Expense, Settlement } from "@/types/expense";
 import { formatCurrency } from "@/lib/utils";
 import DateDisplay from "./DateDisplay";
@@ -10,17 +10,24 @@ import { Button } from "@/components/ui/button";
 import SettleUpDialog from "./SettleUpDialog";
 import { db, addToSyncQueue } from "@/lib/db";
 import { useRouter } from "next/navigation";
+import { ChevronDown, ChevronUp } from "lucide-react";
 
 interface ExpenseListProps {
   expenses: Expense[];
   showGroupName?: boolean;
   groups?: Group[];
+  limit?: number;
+  showExpand?: boolean;
+  title?: string;
 }
 
 export default function ExpenseList({
   expenses,
   showGroupName,
   groups,
+  limit = 0, // Default to showing all
+  showExpand = true,
+  title,
 }: ExpenseListProps) {
   const router = useRouter();
   const [selectedExpense, setSelectedExpense] = useState<Expense | null>(null);
@@ -32,6 +39,15 @@ export default function ExpenseList({
     null
   );
   const [isManualSettlement, setIsManualSettlement] = useState(false);
+  const [expanded, setExpanded] = useState(false);
+
+  // Determine which expenses to display based on limit and expanded state
+  const displayExpenses = useMemo(() => {
+    if (limit <= 0 || expenses.length <= limit || expanded) {
+      return expenses;
+    }
+    return expenses.slice(0, limit);
+  }, [expenses, limit, expanded]);
 
   const getGroupName = (groupId: string) => {
     return groups?.find((g) => g.id === groupId)?.name || "Unknown Group";
@@ -192,8 +208,9 @@ export default function ExpenseList({
 
   return (
     <>
+      {title && <h3 className="mb-3 text-lg font-medium">{title}</h3>}
       <div className="space-y-4">
-        {expenses.map((expense) => {
+        {displayExpenses.map((expense) => {
           const payerInfo = getPrimaryPayerInfo(expense);
           const youPaid = didCurrentUserPay(expense);
 
@@ -395,6 +412,30 @@ export default function ExpenseList({
             </Card>
           );
         })}
+
+        {/* Show expand/collapse button only if needed */}
+        {showExpand && limit > 0 && expenses.length > limit && (
+          <div className="flex justify-center pt-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setExpanded(!expanded)}
+              className="text-muted-foreground hover:text-foreground gap-1"
+            >
+              {expanded ? (
+                <>
+                  <ChevronUp className="h-4 w-4" />
+                  <span>Show less</span>
+                </>
+              ) : (
+                <>
+                  <ChevronDown className="h-4 w-4" />
+                  <span>Show {expenses.length - limit} more</span>
+                </>
+              )}
+            </Button>
+          </div>
+        )}
       </div>
 
       <ExpensePopout

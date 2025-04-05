@@ -4,6 +4,7 @@ import { useState, useMemo, memo } from "react";
 import ExpenseList from "@/components/ExpenseList";
 import ExpenseDialog from "@/components/ExpenseDialog";
 import TestDataGenerator from "@/components/TestDataGenerator";
+import BalanceSummary from "@/components/BalanceSummary";
 import { Expense } from "@/types/expense";
 import { useGroupsStore } from "@/store/groups-store";
 import { useExpenseStore } from "@/store/expense-store";
@@ -42,7 +43,10 @@ const DashboardContent = memo(function DashboardContent() {
     <div className="mx-auto max-w-5xl">
       <div className="mb-8 flex items-center justify-between">
         <h1 className="text-2xl font-bold">Dashboard</h1>
-        <button className="bg-primary text-primary-foreground hover:bg-primary/90 rounded-lg px-4 py-2">
+        <button
+          onClick={() => setIsExpenseDialogOpen(true)}
+          className="bg-primary text-primary-foreground hover:bg-primary/90 rounded-lg px-4 py-2"
+        >
           Add Expense
         </button>
       </div>
@@ -56,10 +60,21 @@ const DashboardContent = memo(function DashboardContent() {
         </div>
       ) : (
         <div className="space-y-8">
+          {/* Balance Summary */}
+          <BalanceSummary
+            expenses={sortedExpenses}
+            userId={currentUser.id}
+            className="mb-8"
+          />
+
           <div>
             <h2 className="mb-4 text-xl font-semibold">Personal Expenses</h2>
             {personalExpenses.length > 0 ? (
-              <ExpenseList expenses={personalExpenses} />
+              <ExpenseList
+                expenses={personalExpenses}
+                limit={5}
+                showExpand={true}
+              />
             ) : (
               <p className="text-muted-foreground">No personal expenses yet.</p>
             )}
@@ -72,6 +87,8 @@ const DashboardContent = memo(function DashboardContent() {
                 expenses={groupExpenses}
                 showGroupName
                 groups={groups}
+                limit={5}
+                showExpand={true}
               />
             </div>
           ) : (
