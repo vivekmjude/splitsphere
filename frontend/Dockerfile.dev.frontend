@@ -1,0 +1,13 @@
+FROM oven/bun:1.2.4
+
+WORKDIR /app
+
+# Install dependencies only
+COPY package.json bun.lock ./
+RUN bun install
+
+# Expose the port
+EXPOSE 3000
+
+# Start the application in development mode
+CMD ["bun", "dev"] 

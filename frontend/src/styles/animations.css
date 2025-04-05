@@ -1,0 +1,191 @@
+@keyframes popIn {
+  0% {
+    opacity: 0;
+    transform: scale(0.95) translateY(10px);
+  }
+  90% {
+    transform: scale(1.01) translateY(-1px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes popOut {
+  0% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.95) translateY(10px);
+  }
+}
+
+/* Sidebar animations */
+@keyframes slideInLeft {
+  from {
+    transform: translateX(-100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes slideOutLeft {
+  from {
+    transform: translateX(0);
+    opacity: 1;
+  }
+  to {
+    transform: translateX(-100%);
+    opacity: 0;
+  }
+}
+
+.sidebar-slide-in {
+  animation: slideInLeft 0.3s ease forwards;
+}
+
+.sidebar-slide-out {
+  animation: slideOutLeft 0.3s ease forwards;
+}
+
+/* Fade animations for mobile overlay */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes fadeOut {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+.overlay-fade-in {
+  animation: fadeIn 0.2s ease forwards;
+}
+
+.overlay-fade-out {
+  animation: fadeOut 0.2s ease forwards;
+}
+
+.expense-popup-enter {
+  animation: popIn 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+}
+
+.expense-popup-exit {
+  animation: popOut 0.2s ease-out forwards;
+}
+
+.dialog-overlay-enter {
+  animation: fadeIn 0.2s ease-out forwards;
+  backdrop-filter: blur(0px);
+  -webkit-backdrop-filter: blur(0px);
+  transition:
+    backdrop-filter 0.3s ease-in-out,
+    -webkit-backdrop-filter 0.3s ease-in-out;
+}
+
+.dialog-overlay-enter[data-state="open"] {
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+.dialog-overlay-exit {
+  animation: fadeOut 0.15s ease-in forwards;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  transition:
+    backdrop-filter 0.2s ease-in-out,
+    -webkit-backdrop-filter 0.2s ease-in-out;
+}
+
+.dialog-overlay-exit[data-state="closed"] {
+  backdrop-filter: blur(0px);
+  -webkit-backdrop-filter: blur(0px);
+}
+
+/* Glass effect for dialog overlay */
+.glass-overlay {
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  background-color: rgba(0, 0, 0, 0.25) !important;
+  transition:
+    backdrop-filter 0.3s ease,
+    -webkit-backdrop-filter 0.3s ease,
+    background-color 0.3s ease;
+}
+
+/* Sync notification animations */
+@keyframes slideInRight {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes slideOutRight {
+  from {
+    transform: translateX(0);
+    opacity: 1;
+  }
+  to {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+}
+
+.sync-notification-enter {
+  animation: slideInRight 0.3s ease forwards;
+}
+
+.sync-notification-exit {
+  animation: slideOutRight 0.3s ease forwards;
+}
+
+/* Mobile-specific notification animation */
+@keyframes slideInFromTop {
+  from {
+    transform: translateY(-100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes slideOutToTop {
+  from {
+    transform: translateY(0);
+    opacity: 1;
+  }
+  to {
+    transform: translateY(-100%);
+    opacity: 0;
+  }
+}
+
+.sync-notification-mobile-enter {
+  animation: slideInFromTop 0.3s ease forwards;
+}
+
+.sync-notification-mobile-exit {
+  animation: slideOutToTop 0.3s ease forwards;
+}
