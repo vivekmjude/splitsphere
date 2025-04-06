@@ -11,8 +11,8 @@ import { db } from "@/lib/db";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 export default function TestDataGenerator() {
-  const [groupExpenses, setGroupExpenses] = useState(50);
-  const [personalExpenses, setPersonalExpenses] = useState(30);
+  const [groupExpenses, setGroupExpenses] = useState<string>("50");
+  const [personalExpenses, setPersonalExpenses] = useState<string>("30");
   const [isGenerating, setIsGenerating] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
   const [result, setResult] = useState<string | null>(null);
@@ -27,8 +27,8 @@ export default function TestDataGenerator() {
 
     try {
       const count = await generateAndAddDummyData(
-        groupExpenses,
-        personalExpenses
+        parseInt(groupExpenses) || 0,
+        parseInt(personalExpenses) || 0
       );
       setResult(`Successfully generated ${count} new expenses!`);
 
@@ -99,7 +99,7 @@ export default function TestDataGenerator() {
                 min="0"
                 max="1000"
                 value={groupExpenses}
-                onChange={(e) => setGroupExpenses(parseInt(e.target.value))}
+                onChange={(e) => setGroupExpenses(e.target.value)}
               />
             </div>
             <div>
@@ -110,7 +110,7 @@ export default function TestDataGenerator() {
                 min="0"
                 max="1000"
                 value={personalExpenses}
-                onChange={(e) => setPersonalExpenses(parseInt(e.target.value))}
+                onChange={(e) => setPersonalExpenses(e.target.value)}
               />
             </div>
           </div>
